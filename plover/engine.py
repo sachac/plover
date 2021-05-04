@@ -95,6 +95,7 @@ class StenoEngine:
     def __init__(self, config, keyboard_emulation):
         self._config = config
         self._is_running = False
+        self._previous_state_ctr = 0
         self._queue = Queue()
         self._lock = threading.RLock()
         self._machine = None
@@ -331,6 +332,19 @@ class StenoEngine:
             return True
         elif command_name == 'toggle':
             self._toggle_output()
+            return True
+        elif command_name == 'always':
+            if len(command_args) > 0 and command_args[0].lower() == 'end':
+                self._previous_state_ctr = self._previous_state_ctr - 1
+                if self._previous_state_ctr <= 0:
+                    self._set_output(False)
+                    self._previous_state_ctr = 0
+            else:
+                if self._previous_state_ctr == 0 and self._is_running:
+                    self._previous_state_ctr = 2
+                else:
+                    self._previous_state_ctr = self._previous_state_ctr + 1
+                self._set_output(True)
             return True
         elif command_name == 'quit':
             self.quit()
