@@ -1,5 +1,5 @@
 
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, deque
 from functools import wraps
 from queue import Queue
 import os
@@ -95,7 +95,7 @@ class StenoEngine:
     def __init__(self, config, keyboard_emulation):
         self._config = config
         self._is_running = False
-        self._previous_state_ctr = 0
+        self._state_stack = deque()
         self._queue = Queue()
         self._lock = threading.RLock()
         self._machine = None
@@ -323,6 +323,15 @@ class StenoEngine:
         self._machine_state = machine_state
         self._trigger_hook('machine_state_changed', self._machine_params.type, machine_state)
 
+    def _save_state(self):
+        self._state_stack.append({'_is_running': self._is_running})
+
+    def _restore_state(self):
+        if len(self._state_stack) > 0:
+            state = self._state_stack.pop()
+            if self._is_running != state['_is_running']:
+                self._set_output(state['is_running'])
+
     def _consume_engine_command(self, command):
         # The first commands can be used whether plover has output enabled or not.
         command_name, *command_args = command.split(':', 1)
@@ -335,16 +344,23 @@ class StenoEngine:
             return True
         elif command_name == 'always':
             if len(command_args) > 0 and command_args[0].lower() == 'end':
-                self._previous_state_ctr = self._previous_state_ctr - 1
-                if self._previous_state_ctr <= 0:
-                    self._set_output(False)
-                    self._previous_state_ctr = 0
+                self._restore_state()
             else:
-                if self._previous_state_ctr == 0 and self._is_running:
-                    self._previous_state_ctr = 2
-                else:
-                    self._previous_state_ctr = self._previous_state_ctr + 1
+                self._save_state()
                 self._set_output(True)
+            return True
+        elif command_name == 'never':
+            if len(command_args) > 0 and command_args[0].lower() == 'end':
+                self._restore_state()
+            else:
+                self._save_state()
+                self._set_output(False)
+            return True
+        elif command_name == 'state':
+            if len(command_args) > 0 and command_args[0].lower() == 'restore':
+                self._restore_state()
+            else:
+                self._save_state()
             return True
         elif command_name == 'quit':
             self.quit()
