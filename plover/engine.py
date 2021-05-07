@@ -330,7 +330,7 @@ class StenoEngine:
         if len(self._state_stack) > 0:
             state = self._state_stack.pop()
             if self._is_running != state['_is_running']:
-                self._set_output(state['is_running'])
+                self._set_output(state['_is_running'])
 
     def _consume_engine_command(self, command):
         # The first commands can be used whether plover has output enabled or not.
