@@ -323,9 +323,11 @@ class StenoEngine:
         self._machine_state = machine_state
         self._trigger_hook('machine_state_changed', self._machine_params.type, machine_state)
 
+    @with_lock
     def _save_state(self):
         self._state_stack.append({'_is_running': self._is_running})
 
+    @with_lock
     def _restore_state(self):
         if len(self._state_stack) > 0:
             state = self._state_stack.pop()
